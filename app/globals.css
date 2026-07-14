@@ -1,26 +1,221 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─── Barshi Design Tokens — Gen Alpha Edition ─── */
+@theme {
+  /* Brand — rich violet with depth */
+  --color-brand:        #8b5cf6;
+  --color-brand-light:  #a78bfa;
+  --color-brand-dark:   #7c3aed;
+  --color-brand-glow:   rgba(139,92,246,0.45);
+
+  /* Surfaces — ultra deep dark */
+  --color-surface:      #06060f;
+  --color-surface-2:    #0c0c1c;
+  --color-surface-3:    #131328;
+  --color-surface-4:    #1a1a32;
+
+  /* Borders — subtle */
+  --color-border:       #1e1e3a;
+  --color-border-light: #2e2e50;
+
+  /* Text */
+  --color-text:         #f0f0ff;
+  --color-text-muted:   #6e6e9a;
+  --color-text-dim:     #3a3a5c;
+
+  /* Semantic */
+  --color-success:      #22c55e;
+  --color-warning:      #f59e0b;
+  --color-danger:       #ef4444;
+
+  /* Project type accents */
+  --color-game:         #fb923c;
+  --color-website:      #60a5fa;
+  --color-tool:         #c084fc;
+  --color-story:        #f472b6;
+  --color-world:        #34d399;
+
+  /* Typography */
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-sans:    "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", monospace;
+
+  /* Radius — softer and rounder */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   20px;
+  --radius-xl:   28px;
+  --radius-2xl:  40px;
+  --radius-full: 9999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ─── Base ─── */
+*, *::before, *::after { box-sizing: border-box; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100dvh;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--color-border-light); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-dim); }
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* ─── Focus ─── */
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; border-radius: 4px; }
+::selection { background: rgba(139,92,246,0.35); color: var(--color-text); }
+
+/* ─── Misc ─── */
+.sandbox-frame { border: none; display: block; width: 100%; height: 100%; }
+
+/* ─── Gradient Text ─── */
+.gradient-text {
+  background: linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Glass card ─── */
+.glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.07);
+}
+
+/* ─── Glow effects ─── */
+.glow-brand {
+  box-shadow: 0 0 24px rgba(139,92,246,0.5), 0 0 48px rgba(139,92,246,0.2);
+}
+.glow-sm {
+  box-shadow: 0 0 12px rgba(139,92,246,0.35);
+}
+
+/* ─── Safe area for mobile ─── */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* ═══════════════════════════════════════════════
+   Motion — keyframes + utilities
+   ═══════════════════════════════════════════════ */
+
+@keyframes aurora-drift {
+  0%   { transform: translate3d(-8%, -6%, 0) scale(1.05) rotate(0deg); }
+  33%  { transform: translate3d(6%, 4%, 0) scale(1.15) rotate(4deg); }
+  66%  { transform: translate3d(-4%, 8%, 0) scale(1.1) rotate(-3deg); }
+  100% { transform: translate3d(-8%, -6%, 0) scale(1.05) rotate(0deg); }
+}
+
+@keyframes aurora-drift-2 {
+  0%   { transform: translate3d(6%, 8%, 0) scale(1.2); }
+  50%  { transform: translate3d(-8%, -4%, 0) scale(1.05); }
+  100% { transform: translate3d(6%, 8%, 0) scale(1.2); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50%      { transform: translateY(-18px) translateX(6px); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+@keyframes gradient-pan {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sheen {
+  0%   { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(220%) skewX(-18deg); }
+}
+
+.animate-aurora    { animation: aurora-drift 22s ease-in-out infinite; }
+.animate-aurora-2  { animation: aurora-drift-2 28s ease-in-out infinite; }
+.animate-float     { animation: float-slow 8s ease-in-out infinite; }
+.animate-pulse-glow{ animation: pulse-glow 4s ease-in-out infinite; }
+.animate-rise      { animation: rise-in 0.5s cubic-bezier(0.22,1,0.36,1) both; }
+
+/* Animated gradient text (pans the gradient rather than static clip) */
+.gradient-text-anim {
+  background: linear-gradient(100deg, #c084fc, #818cf8, #60a5fa, #22d3ee, #c084fc);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-pan 8s ease infinite;
+}
+
+/* Skeleton shimmer */
+.shimmer {
+  background: linear-gradient(90deg, var(--color-surface-3) 25%, var(--color-surface-4) 50%, var(--color-surface-3) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+/* Sheen sweep — apply to a positioned overlay inside a card on hover */
+.sheen::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+.sheen:hover::after { animation: sheen 0.9s ease; }
+
+/* Card lift shadow token */
+.lift {
+  transition: transform 0.3s cubic-bezier(0.22,1,0.36,1), box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.lift:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora, .animate-aurora-2, .animate-float, .animate-pulse-glow,
+  .animate-rise, .gradient-text-anim, .shimmer, .sheen:hover::after {
+    animation: none !important;
+  }
+}
+
+/* ─── Reduced motion ─── */
+/* Respect users who ask for less motion: kill smooth scroll and neutralize
+   animations/transitions across the app (including Framer Motion output). */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

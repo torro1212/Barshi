@@ -30,11 +30,25 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — never commit secrets (.env.example is allowed)
+.env
+.env.*
+!.env.example
+
+# local IDE / agent config
+.claude/
+
+# user uploads (local dev only)
+/uploads/
+
+# dependencies at any depth
+node_modules/
 
 # vercel
 .vercel
+
+# local-mode persisted data (self-hosted single-user store)
+/.barshi-data
 
 # typescript
 *.tsbuildinfo
