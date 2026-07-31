@@ -1,31 +1,44 @@
-import { useMemo } from 'react';
-import { TOP_PICK_SCORE, scoreMatch } from '../algorithm';
-import { generateNextRound } from '../demo-data';
+import { useState } from 'react';
+import { fetchNextFixtures } from '../fixtures';
 import { LEAGUES } from '../leagues';
-import type { LeagueId, MatchData, Weights } from '../types';
-import { cn, formatHebrewDate, scoreColor } from '../ui';
+import { predictAll } from '../model';
+import type { LeagueId, MatchData, Prediction } from '../types';
+import PredictionTable from './PredictionTable';
 
 interface Props {
   league: LeagueId;
-  weights: Weights;
+  apiKey: string;
   onLoadToAnalysis: (matches: MatchData[], date: string) => void;
 }
 
-export default function NextMatchday({ league, weights, onLoadToAnalysis }: Props) {
+export default function NextMatchday({ league, apiKey, onLoadToAnalysis }: Props) {
   const cfg = LEAGUES[league];
-  const round = useMemo(() => generateNextRound(league), [league]);
-  const allMatches = round.flatMap((d) => d.matches);
-  const scoredById = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const m of allMatches) map.set(m.id, scoreMatch(m, weights).total);
-    return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round, weights]);
+  const [preds, setPreds] = useState<Prediction[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const topPicks = allMatches
-    .map((m) => ({ m, total: scoredById.get(m.id) ?? 0 }))
-    .filter((x) => x.total >= TOP_PICK_SCORE)
-    .sort((a, b) => b.total - a.total);
+  const load = async () => {
+    if (!apiKey.trim()) {
+      setError('נדרש מפתח API-Football (מוזן במסך הראשי) כדי לשלוף את המחזור הבא');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const fixtures = await fetchNextFixtures(league, apiKey.trim(), 10);
+      if (fixtures.length === 0) {
+        setError('לא נמצאו משחקים קרובים — ייתכן שהעונה בהפסקה');
+        setPreds(null);
+      } else {
+        setPreds(predictAll(fixtures));
+      }
+    } catch {
+      setError('שליפת המשחקים נכשלה — בדוק את המפתח ואת מגבלת הבקשות היומית');
+      setPreds(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -36,71 +49,37 @@ export default function NextMatchday({ league, weights, onLoadToAnalysis }: Prop
               המחזור הבא — {cfg.flag} {cfg.nameShort}
             </div>
             <div className="mt-1 text-xs text-slate-500">
-              {cfg.matchesPerRound} משחקים • {cfg.roundDayNames.join('–')} (
-              {cfg.roundDaySplit.join('+')})
+              10 המשחקים הקרובים מלוח המשחקים האמיתי (API-Football)
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onLoadToAnalysis(allMatches, round[0].date)}
-            className="rounded-lg bg-orange-500 px-4 py-2 font-bold text-slate-950 transition hover:bg-orange-400"
-          >
-            טען לניתוח המלא
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="rounded-lg bg-orange-500 px-4 py-2 font-bold text-slate-950 transition hover:bg-orange-400 disabled:opacity-50"
+            >
+              {loading ? 'שולף…' : 'שליפת המחזור הבא'}
+            </button>
+            {preds && preds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onLoadToAnalysis(preds.map((p) => p.match), preds[0].match.date)}
+                className="rounded-lg border border-orange-500/50 px-4 py-2 font-bold text-orange-400 transition hover:bg-orange-500/10"
+              >
+                טען לניתוח המלא
+              </button>
+            )}
+          </div>
         </div>
+        {error && (
+          <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+            {error}
+          </div>
+        )}
       </div>
 
-      {topPicks.length > 0 && (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/5 p-4">
-          <div className="text-sm font-bold text-emerald-400">TOP PICKS (ציון ≥ {TOP_PICK_SCORE})</div>
-          <div className="mt-2 space-y-1">
-            {topPicks.map(({ m, total }) => (
-              <div key={m.id} className="flex items-center justify-between text-sm">
-                <span>
-                  {m.homeTeam} — {m.awayTeam}
-                  <span className="ms-2 text-xs text-slate-500">{formatHebrewDate(m.date)} • {m.time}</span>
-                </span>
-                <b className={scoreColor(total)}>{total}</b>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {round.map((day) => (
-        <div key={day.date} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="text-sm font-bold text-slate-300">
-            יום {day.dayName} • {formatHebrewDate(day.date)}
-          </div>
-          <div className="mt-2 divide-y divide-slate-800">
-            {day.matches.map((m) => {
-              const total = scoredById.get(m.id) ?? 0;
-              return (
-                <div key={m.id} className="flex items-center justify-between py-2 text-sm">
-                  <div>
-                    <span className="font-semibold">
-                      {m.homeTeam} — {m.awayTeam}
-                    </span>
-                    <span className="ms-2 text-xs text-slate-500">
-                      {m.time}
-                      {m.note ? ` • ${m.note}` : ''}
-                    </span>
-                  </div>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-sm font-bold',
-                      total >= TOP_PICK_SCORE && 'bg-emerald-500/15',
-                      scoreColor(total),
-                    )}
-                  >
-                    {total}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      {preds && <PredictionTable preds={preds} />}
     </div>
   );
 }

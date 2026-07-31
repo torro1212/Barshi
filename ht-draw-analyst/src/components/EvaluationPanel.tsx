@@ -1,25 +1,23 @@
-import { isHtDraw } from '../algorithm';
-import type { ScoredMatch } from '../types';
-import { cn } from '../ui';
+import { displayTeam } from '../leagues';
+import { isHtDraw, pickHit } from '../model';
+import type { Prediction } from '../types';
+import { SIDE_LABELS, SIDE_STYLES, cn } from '../ui';
 
 interface Props {
-  scored: ScoredMatch[];
-  recommendedIds: Set<string>;
+  preds: Prediction[];
   onResultChange: (matchId: string, result: string) => void;
 }
 
-export default function EvaluationPanel({ scored, recommendedIds, onResultChange }: Props) {
-  const withResults = scored.filter((s) => isHtDraw(s.match.htResult) !== undefined);
-  const recWithResults = withResults.filter((s) => recommendedIds.has(s.match.id));
-  const recHits = recWithResults.filter((s) => isHtDraw(s.match.htResult) === true);
-  const hitRate =
-    recWithResults.length > 0 ? Math.round((recHits.length / recWithResults.length) * 100) : null;
-  const totalDraws = withResults.filter((s) => isHtDraw(s.match.htResult) === true).length;
+export default function EvaluationPanel({ preds, onResultChange }: Props) {
+  const recommended = preds.filter((p) => p.side !== 'none');
+  const withResults = recommended.filter((p) => isHtDraw(p.match.htResult) !== undefined);
+  const hits = withResults.filter((p) => pickHit(p.side, p.match.htResult) === true);
+  const hitRate = withResults.length > 0 ? Math.round((hits.length / withResults.length) * 100) : null;
 
-  if (scored.length === 0) {
+  if (preds.length === 0) {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-400">
-        טען משחקים במסך ההזנה כדי להזין תוצאות מחצית
+        טען משחקים כדי להזין תוצאות מחצית
       </div>
     );
   }
@@ -29,36 +27,34 @@ export default function EvaluationPanel({ scored, recommendedIds, onResultChange
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
         <div className="text-sm font-bold text-slate-300">הזנת תוצאות מחצית (פורמט: 0-0, 1-1, 2-1…)</div>
         <div className="mt-3 space-y-2">
-          {scored.map((s) => {
-            const draw = isHtDraw(s.match.htResult);
-            const recommended = recommendedIds.has(s.match.id);
+          {preds.map((pr) => {
+            const hit = pickHit(pr.side, pr.match.htResult);
             return (
               <div
-                key={s.match.id}
+                key={pr.match.id}
                 className={cn(
                   'flex flex-wrap items-center gap-3 rounded-xl border p-3',
-                  recommended ? 'border-orange-500/40 bg-orange-500/5' : 'border-slate-800 bg-slate-950/50',
+                  pr.side !== 'none' ? 'border-orange-500/40 bg-orange-500/5' : 'border-slate-800 bg-slate-950/50',
                 )}
               >
                 <div className="min-w-0 flex-1">
                   <span className="font-semibold">
-                    {s.match.homeTeam} — {s.match.awayTeam}
+                    {displayTeam(pr.match.league, pr.match.homeTeam)} — {displayTeam(pr.match.league, pr.match.awayTeam)}
                   </span>
-                  <span className="ms-2 text-xs text-slate-500">ציון {s.total}</span>
-                  {recommended && (
-                    <span className="ms-2 rounded-full bg-orange-500/20 px-2 py-0.5 text-xs text-orange-400">הומלץ</span>
-                  )}
+                  <span className={cn('ms-2 rounded-full border px-2 py-0.5 text-xs', SIDE_STYLES[pr.side])}>
+                    {SIDE_LABELS[pr.side]} {pr.side !== 'none' && `(${Math.round(pr.p * 100)}%)`}
+                  </span>
                 </div>
                 <input
                   dir="ltr"
                   placeholder="0-0"
-                  value={s.match.htResult ?? ''}
-                  onChange={(e) => onResultChange(s.match.id, e.target.value)}
+                  value={pr.match.htResult ?? ''}
+                  onChange={(e) => onResultChange(pr.match.id, e.target.value)}
                   className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center"
                 />
-                {draw !== undefined && (
-                  <span className={cn('text-lg', draw ? 'text-emerald-400' : 'text-red-400')}>
-                    {draw ? '✓ תיקו' : '✗'}
+                {hit !== undefined && (
+                  <span className={cn('text-lg', hit ? 'text-emerald-400' : 'text-red-400')}>
+                    {hit ? '✓ פגיעה' : '✗ החטאה'}
                   </span>
                 )}
               </div>
@@ -69,20 +65,18 @@ export default function EvaluationPanel({ scored, recommendedIds, onResultChange
 
       {hitRate !== null && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="text-sm font-bold text-slate-300">אחוז פגיעה בהמלצות</div>
+          <div className="text-sm font-bold text-slate-300">אחוז פגיעה בהמלצות היום</div>
           <div className="mt-2 flex items-center gap-4">
-            <div className={cn('text-4xl font-black', hitRate >= 50 ? 'text-emerald-400' : 'text-amber-400')}>
+            <div className={cn('text-4xl font-black', hitRate >= 60 ? 'text-emerald-400' : 'text-amber-400')}>
               {hitRate}%
             </div>
             <div className="text-sm text-slate-400">
-              {recHits.length} פגיעות מתוך {recWithResults.length} המלצות שהוזנה להן תוצאה
-              <br />
-              סה"כ תיקו במחצית ביום זה: {totalDraws}/{withResults.length}
+              {hits.length} פגיעות מתוך {withResults.length} המלצות שהוזנה להן תוצאה
             </div>
           </div>
           <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
             <div
-              className={cn('h-full transition-all', hitRate >= 50 ? 'bg-emerald-500' : 'bg-amber-500')}
+              className={cn('h-full transition-all', hitRate >= 60 ? 'bg-emerald-500' : 'bg-amber-500')}
               style={{ width: `${hitRate}%` }}
             />
           </div>

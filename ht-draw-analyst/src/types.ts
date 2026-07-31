@@ -1,95 +1,71 @@
 export type LeagueId = 'laliga' | 'israel';
 
-export type TeamStyle = 'attacking' | 'balanced' | 'defensive';
-
-export interface TeamProfile {
-  name: string;
-  style: TeamStyle;
-  htDrawRate: number; // typical % of matches drawn at half-time
-}
+export type Side = 'draw' | 'no-draw' | 'none';
 
 export interface MatchData {
   id: string;
   league: LeagueId;
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
-  homeTeam: string;
+  homeTeam: string; // dataset name (English)
   awayTeam: string;
-  // Layer 1 — profile
-  homeHtDrawPct: number; // 0-100, HT draw % at home
-  awayHtDrawPct: number; // 0-100, HT draw % away
-  // Layer 2 — head to head
-  h2hMatchesCount: number; // 0-20
-  h2hHtDraws: number;
-  // Layer 3 — form (last 6 matches)
-  homeRecentHtDraws: number; // 0-6
-  awayRecentHtDraws: number; // 0-6
-  // Layer 4 — streaks / statistical tension
-  homeGamesSinceHtDraw: number;
-  awayGamesSinceHtDraw: number;
-  homeTablePosition: number;
-  awayTablePosition: number;
-  note?: string;
   htResult?: string; // e.g. "0-0"
 }
 
-export interface Weights {
-  profile: number;
-  h2h: number;
-  form: number;
-  streaks: number;
+export interface TeamStats {
+  name: string;
+  ppg: number; // points per game, latest season in the data
+  position: number;
+  played: number;
+  gfAvg: number; // goals for per game, last 10
+  gaAvg: number; // goals against per game, last 10
+  tempo: number; // gf+ga per game, last 10
+  homeHtRate: number; // 0-1, HT draws in last 15 home matches
+  awayHtRate: number;
+  recent6: number; // HT draws in last 6 matches
+  since: number; // games since an HT draw
 }
 
-export interface LayerScores {
-  profile: number;
-  h2h: number;
-  form: number;
-  streaks: number;
+export interface LeagueModel {
+  means: number[];
+  stds: number[];
+  weights: number[]; // bias at index 0
 }
 
-export type Confidence = 'top' | 'good' | 'borderline' | 'low';
+export interface LeagueBundle {
+  league: LeagueId;
+  baseRate: number; // historical HT draw rate
+  nTeams: number;
+  season: string; // last season in the data, e.g. "2526"
+  lastDate: string;
+  matches: number;
+  teams: Record<string, TeamStats>;
+  h2h: Record<string, { n: number; draws: number }>; // key: sorted "A|B"
+  model: LeagueModel;
+  thresholds: { noDraw: number; draw: number };
+  precision: { noDraw: number; draw: number }; // measured out-of-sample, %
+  drawRecommendable: boolean;
+  testedOn: string;
+}
 
-export interface ScoredMatch {
+export interface Prediction {
   match: MatchData;
-  layers: LayerScores;
-  total: number; // 0-100
-  confidence: Confidence;
+  p: number; // P(HT draw), 0-1
+  side: Side;
+  precisionPct: number | null; // measured OOS precision for the picked side
   reasons: string[];
-  signals: number; // count of strong signals (for gold pattern)
+  missingTeam?: string; // set when a team has no stats in the bundle
 }
 
 export interface DayRecord {
   league: LeagueId;
   date: string;
   matches: MatchData[];
-  source: 'demo' | 'ai' | 'manual';
+  source: 'api' | 'manual';
 }
 
 export interface AppState {
   selectedLeague: LeagueId;
-  minScore: Record<LeagueId, number>;
   days: Record<string, DayRecord>; // key: `${league}:${date}`
-  geminiApiKey?: string;
-}
-
-export interface PatternStat {
-  name: string;
-  matches: number;
-  hits: number;
-  hitRate: number; // 0-100
-}
-
-export interface LearningResult {
-  league: LeagueId;
-  sampleSize: number;
-  daysAnalyzed: number;
-  usedDemoData: boolean;
-  currentWeights: Weights;
-  bestWeights: Weights;
-  bestThreshold: number;
-  f1: number;
-  precision: number;
-  recall: number;
-  patterns: PatternStat[];
-  daily: { date: string; recommended: number; hits: number }[];
+  apiFootballKey?: string;
 }

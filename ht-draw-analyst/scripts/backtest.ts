@@ -14,8 +14,8 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_WEIGHTS, MAX_RECOMMENDATIONS, scoreMatch } from '../src/algorithm';
-import type { MatchData, Weights } from '../src/types';
+import { DEFAULT_WEIGHTS, MAX_RECOMMENDATIONS, scoreMatch } from './algorithm-v1';
+import type { MatchData, Weights } from './algorithm-v1';
 
 interface RawMatch {
   season: string;

@@ -1,42 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { fetchMatchesAI } from './ai-service';
-import {
-  DEFAULT_WEIGHTS,
-  isHtDraw,
-  recommendations,
-  scoreMatches,
-} from './algorithm';
-import { generateDemoMatches } from './demo-data';
+import { fetchFixturesByDate } from './fixtures';
 import { LEAGUES } from './leagues';
-import {
-  dayKey,
-  hasLearnedWeights,
-  historyForLeague,
-  loadState,
-  loadWeights,
-  resetWeights,
-  saveState,
-  saveWeights,
-} from './storage';
-import type { AppState, LeagueId, MatchData, Weights } from './types';
+import { BUNDLES, predictAll, recommendations } from './model';
+import { dayKey, historyForLeague, loadState, saveState } from './storage';
+import type { AppState, LeagueId, MatchData } from './types';
 import { cn, formatHebrewDate, todayISO } from './ui';
+import AccuracyPanel from './components/AccuracyPanel';
 import EvaluationPanel from './components/EvaluationPanel';
 import FetchPanel from './components/FetchPanel';
-import LearningPanel from './components/LearningPanel';
 import ManualMatchForm from './components/ManualMatchForm';
-import MatchTable from './components/MatchTable';
 import NextMatchday from './components/NextMatchday';
-import RecommendationCard from './components/RecommendationCard';
+import PredictionCard from './components/PredictionCard';
+import PredictionTable from './components/PredictionTable';
 
-type Tab = 'dashboard' | 'input' | 'analysis' | 'results' | 'learning' | 'next';
+type Tab = 'dashboard' | 'matches' | 'analysis' | 'results' | 'accuracy' | 'next';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'ראשי' },
-  { id: 'input', label: 'הזנה' },
+  { id: 'matches', label: 'משחקים' },
   { id: 'analysis', label: 'ניתוח' },
   { id: 'results', label: 'תוצאות' },
-  { id: 'learning', label: 'למידה' },
+  { id: 'accuracy', label: 'דיוק' },
   { id: 'next', label: 'המחזור הבא' },
 ];
 
@@ -45,25 +30,20 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [date, setDate] = useState(todayISO());
   const [matches, setMatches] = useState<MatchData[]>([]);
-  const [source, setSource] = useState<'demo' | 'ai' | 'manual' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [weights, setWeights] = useState<Weights>(() => loadWeights(loadState().selectedLeague));
-  const [learned, setLearned] = useState(() => hasLearnedWeights(loadState().selectedLeague));
 
   const league = state.selectedLeague;
   const cfg = LEAGUES[league];
-  const minScore = state.minScore[league];
+  const bundle = BUNDLES[league];
 
   useEffect(() => saveState(state), [state]);
 
-  const scored = useMemo(() => scoreMatches(matches, weights), [matches, weights]);
-  const recs = useMemo(() => recommendations(scored, minScore), [scored, minScore]);
-  const recIds = useMemo(() => new Set(recs.map((r) => r.match.id)), [recs]);
+  const preds = useMemo(() => predictAll(matches), [matches]);
+  const recs = useMemo(() => recommendations(preds), [preds]);
 
-  const persistDay = (nextMatches: MatchData[], src: 'demo' | 'ai' | 'manual') => {
+  const persistDay = (nextMatches: MatchData[], src: 'api' | 'manual') => {
     setMatches(nextMatches);
-    setSource(src);
     setState((s) => ({
       ...s,
       days: {
@@ -75,92 +55,75 @@ export default function App() {
 
   const switchLeague = (next: LeagueId) => {
     if (next === league) return;
-    setMatches([]); // clear loaded matches
-    setSource(null);
-    setError(null); // reset error messages
-    setWeights(loadWeights(next)); // per-league learned weights
-    setLearned(hasLearnedWeights(next));
-    setState((s) => ({ ...s, selectedLeague: next })); // persisted via localStorage
+    setMatches([]);
+    setError(null);
+    setState((s) => ({ ...s, selectedLeague: next }));
   };
 
-  const fetchDemo = () => {
+  const fetchForDate = async () => {
     setError(null);
     const saved = state.days[dayKey(league, date)];
-    if (saved && saved.source !== 'ai') {
-      setMatches(saved.matches);
-      setSource(saved.source);
-      return;
-    }
-    persistDay(generateDemoMatches(league, date), 'demo');
-  };
-
-  const fetchAI = async () => {
-    setError(null);
-    const key = state.geminiApiKey?.trim();
+    const key = state.apiFootballKey?.trim();
     if (!key) {
-      setError('לא הוגדר מפתח Gemini API — נטענו נתוני דמו במקום. אפשר להגדיר מפתח בפאנל השליפה.');
-      persistDay(generateDemoMatches(league, date), 'demo');
+      if (saved) {
+        setMatches(saved.matches);
+        return;
+      }
+      setError('נדרש מפתח API-Football כדי לשלוף משחקים אמיתיים — אפשר גם להוסיף משחקים ידנית במסך "משחקים"');
       return;
     }
     setLoading(true);
     try {
-      const aiMatches = await fetchMatchesAI(league, date, key);
-      if (aiMatches.length === 0) {
-        setError('ה-AI לא מצא משחקים לתאריך הזה — נטענו נתוני דמו במקום.');
-        persistDay(generateDemoMatches(league, date), 'demo');
+      const fixtures = await fetchFixturesByDate(league, date, key);
+      if (fixtures.length === 0) {
+        setError('אין משחקים בליגה הזו בתאריך הזה');
+        if (saved) setMatches(saved.matches);
       } else {
-        persistDay(aiMatches, 'ai');
+        persistDay(fixtures, 'api');
       }
     } catch {
-      setError('שליפת ה-AI נכשלה — נטענו נתוני דמו במקום.');
-      persistDay(generateDemoMatches(league, date), 'demo');
+      setError('השליפה נכשלה — בדוק את המפתח ואת מגבלת הבקשות היומית');
+      if (saved) setMatches(saved.matches);
     } finally {
       setLoading(false);
     }
   };
 
-  const addManualMatch = (m: MatchData) => {
-    persistDay([...matches, m], 'manual');
-  };
-
-  const deleteMatch = (id: string) => {
-    persistDay(matches.filter((m) => m.id !== id), source ?? 'manual');
-  };
+  const addManualMatch = (m: MatchData) => persistDay([...matches, m], 'manual');
+  const deleteMatch = (id: string) => persistDay(matches.filter((m) => m.id !== id), 'manual');
 
   const setResult = (matchId: string, result: string) => {
-    const next = matches.map((m) => (m.id === matchId ? { ...m, htResult: result || undefined } : m));
-    persistDay(next, source ?? 'manual');
+    persistDay(
+      matches.map((m) => (m.id === matchId ? { ...m, htResult: result || undefined } : m)),
+      'manual',
+    );
   };
 
-  const applyWeights = (w: Weights) => {
-    saveWeights(league, w);
-    setWeights(w);
-    setLearned(true);
-  };
-
-  const resetLeagueWeights = () => {
-    resetWeights(league);
-    setWeights(DEFAULT_WEIGHTS);
-    setLearned(false);
-  };
-
-  const loadRoundToAnalysis = (roundMatches: MatchData[], roundDate: string) => {
+  const loadToAnalysis = (roundMatches: MatchData[], roundDate: string) => {
     setDate(roundDate);
     setMatches(roundMatches);
-    setSource('demo');
     setError(null);
     setTab('analysis');
   };
 
   const leagueHistory = useMemo(
-    () =>
-      historyForLeague(state, league)
-        .flatMap((d) => d.matches)
-        .filter((m) => isHtDraw(m.htResult) !== undefined),
+    () => historyForLeague(state, league).flatMap((d) => d.matches),
     [state, league],
   );
 
-  const maxScore = scored.length > 0 ? scored[0].total : null;
+  const fetchPanel = (
+    <FetchPanel
+      league={league}
+      onLeagueChange={switchLeague}
+      date={date}
+      onDateChange={setDate}
+      onFetch={fetchForDate}
+      loading={loading}
+      error={error}
+      apiKey={state.apiFootballKey ?? ''}
+      onApiKeyChange={(k) => setState((s) => ({ ...s, apiFootballKey: k }))}
+    />
+  );
 
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-4 pb-16">
@@ -170,18 +133,13 @@ export default function App() {
             HT <span className="text-orange-500">Analyst</span>
           </h1>
           <div className="mt-0.5 text-sm text-slate-400">
-            {cfg.flag} {cfg.nameShort} • מנתח תיקו במחצית
+            {cfg.flag} {cfg.nameShort} • מנתח תיקו במחצית • נתונים אמיתיים בלבד
           </div>
         </div>
         <div className="flex gap-2 text-xs">
-          <span className="rounded-full border border-slate-700 px-3 py-1 text-slate-300">
-            {source === 'ai' ? 'AI' : 'DEMO'}
+          <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-emerald-400">
+            {bundle.matches.toLocaleString()} משחקים אמיתיים
           </span>
-          {learned && (
-            <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-emerald-400">
-              למידה פעילה
-            </span>
-          )}
           <span className="rounded-full border border-slate-700 px-3 py-1">{cfg.flag}</span>
         </div>
       </header>
@@ -213,33 +171,23 @@ export default function App() {
         >
           {tab === 'dashboard' && (
             <>
-              <FetchPanel
-                league={league}
-                onLeagueChange={switchLeague}
-                date={date}
-                onDateChange={setDate}
-                onFetchDemo={fetchDemo}
-                onFetchAI={fetchAI}
-                loading={loading}
-                error={error}
-                geminiApiKey={state.geminiApiKey ?? ''}
-                onApiKeyChange={(k) => setState((s) => ({ ...s, geminiApiKey: k }))}
-              />
-
+              {fetchPanel}
               <div className="grid grid-cols-3 gap-3">
                 <StatCard label="משחקים" value={matches.length} />
                 <StatCard label="המלצות" value={recs.length} />
-                <StatCard label="ציון מקסימלי" value={maxScore ?? '—'} />
+                <StatCard
+                  label={`דיוק "אין תיקו" מדוד`}
+                  value={`${bundle.precision.noDraw}%`}
+                />
               </div>
-
               {recs.length > 0 && (
                 <div>
                   <div className="mb-2 text-sm font-bold text-slate-300">
-                    2 ההמלצות המובילות • {formatHebrewDate(date)}
+                    ההמלצות המובילות • {formatHebrewDate(date)}
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     {recs.slice(0, 2).map((r, i) => (
-                      <RecommendationCard key={r.match.id} scored={r} rank={i} />
+                      <PredictionCard key={r.match.id} pred={r} rank={i} />
                     ))}
                   </div>
                 </div>
@@ -247,99 +195,59 @@ export default function App() {
             </>
           )}
 
-          {tab === 'input' && (
+          {tab === 'matches' && (
             <>
-              <FetchPanel
-                league={league}
-                onLeagueChange={switchLeague}
-                date={date}
-                onDateChange={setDate}
-                onFetchDemo={fetchDemo}
-                onFetchAI={fetchAI}
-                loading={loading}
-                error={error}
-                geminiApiKey={state.geminiApiKey ?? ''}
-                onApiKeyChange={(k) => setState((s) => ({ ...s, geminiApiKey: k }))}
-              />
+              {fetchPanel}
               <ManualMatchForm league={league} date={date} onAdd={addManualMatch} />
               <div>
                 <div className="mb-2 text-sm font-bold text-slate-300">משחקים טעונים ({matches.length})</div>
-                <MatchTable scored={scored} onDelete={deleteMatch} />
+                <PredictionTable preds={preds} onDelete={deleteMatch} />
               </div>
             </>
           )}
 
           {tab === 'analysis' && (
             <>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-bold text-slate-300">
-                  המלצות מובילות • {formatHebrewDate(date)} • סף מינימום:
-                  <input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={minScore}
-                    onChange={(e) =>
-                      setState((s) => ({
-                        ...s,
-                        minScore: {
-                          ...s.minScore,
-                          [league]: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
-                        },
-                      }))
-                    }
-                    className="ms-2 w-16 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-center"
-                  />
-                </div>
-                {source === 'ai' && (
-                  <span className="text-xs text-slate-500">מקור נתונים: Gemini AI + Google Search</span>
-                )}
+              <div className="text-sm font-bold text-slate-300">
+                המלצות • {formatHebrewDate(date)} • עד 6, לפי מרחק מהסף
               </div>
-
               {recs.length === 0 ? (
                 <div className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center text-slate-400">
                   {matches.length === 0
-                    ? 'אין משחקים — שלוף משחקים במסך הראשי או במסך ההזנה'
-                    : `אף משחק לא עבר את סף ה-${minScore} — נסה להוריד את הסף`}
+                    ? 'אין משחקים — שלוף משחקים אמיתיים או הוסף ידנית במסך "משחקים"'
+                    : 'אף משחק לא חצה את ספי ההמלצה — אין המלצה היום (איכות על כמות)'}
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {recs.map((r, i) => (
-                    <RecommendationCard key={r.match.id} scored={r} rank={i} />
+                    <PredictionCard key={r.match.id} pred={r} rank={i} />
                   ))}
                 </div>
               )}
-
               <div>
-                <div className="mb-2 text-sm font-bold text-slate-300">כל המשחקים לפי ציון</div>
-                <MatchTable scored={scored} />
+                <div className="mb-2 text-sm font-bold text-slate-300">כל המשחקים</div>
+                <PredictionTable preds={preds} />
               </div>
             </>
           )}
 
-          {tab === 'results' && (
-            <EvaluationPanel scored={scored} recommendedIds={recIds} onResultChange={setResult} />
-          )}
+          {tab === 'results' && <EvaluationPanel preds={preds} onResultChange={setResult} />}
 
-          {tab === 'learning' && (
-            <LearningPanel
-              league={league}
-              history={leagueHistory}
-              currentWeights={weights}
-              hasLearned={learned}
-              onApplyWeights={applyWeights}
-              onResetWeights={resetLeagueWeights}
-            />
-          )}
+          {tab === 'accuracy' && <AccuracyPanel league={league} history={leagueHistory} />}
 
           {tab === 'next' && (
-            <NextMatchday league={league} weights={weights} onLoadToAnalysis={loadRoundToAnalysis} />
+            <NextMatchday
+              league={league}
+              apiKey={state.apiFootballKey ?? ''}
+              onLoadToAnalysis={loadToAnalysis}
+            />
           )}
         </motion.main>
       </AnimatePresence>
 
       <footer className="mt-10 border-t border-slate-800 pt-4 text-center text-xs text-slate-600">
-        HT Draw Analyst — כלי ניתוח סטטיסטי בלבד, לא ייעוץ הימורים • איכות על כמות: עד 6 המלצות ביום
+        HT Draw Analyst — נתונים אמיתיים בלבד • דיוק מדוד בבדיקה עיוורת, לא הבטחה • כלי ניתוח
+        סטטיסטי, לא ייעוץ הימורים
       </footer>
     </div>
   );

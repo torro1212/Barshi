@@ -1,10 +1,54 @@
-import type {
-  Confidence,
-  LayerScores,
-  MatchData,
-  ScoredMatch,
-  Weights,
-} from './types';
+// Legacy v1 4-layer scoring algorithm. Kept only for scripts/backtest.ts so
+// the historical evaluation of the original spec's algorithm stays
+// reproducible; the app itself now uses src/model.ts (logistic model on real
+// data). The v1 types live here, self-contained.
+
+export type LeagueId = 'laliga' | 'israel';
+export type Confidence = 'top' | 'good' | 'borderline' | 'low';
+
+export interface MatchData {
+  id: string;
+  league: LeagueId;
+  date: string;
+  time: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeHtDrawPct: number;
+  awayHtDrawPct: number;
+  h2hMatchesCount: number;
+  h2hHtDraws: number;
+  homeRecentHtDraws: number;
+  awayRecentHtDraws: number;
+  homeGamesSinceHtDraw: number;
+  awayGamesSinceHtDraw: number;
+  homeTablePosition: number;
+  awayTablePosition: number;
+  note?: string;
+  htResult?: string;
+}
+
+export interface Weights {
+  profile: number;
+  h2h: number;
+  form: number;
+  streaks: number;
+}
+
+export interface LayerScores {
+  profile: number;
+  h2h: number;
+  form: number;
+  streaks: number;
+}
+
+export interface ScoredMatch {
+  match: MatchData;
+  layers: LayerScores;
+  total: number;
+  confidence: Confidence;
+  reasons: string[];
+  signals: number;
+}
 
 export const DEFAULT_WEIGHTS: Weights = {
   profile: 0.35,
