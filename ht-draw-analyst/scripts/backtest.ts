@@ -5,11 +5,12 @@
  * For every match, team/H2H features are computed ONLY from matches played
  * before it — the model never sees the result it is predicting. Usage:
  *
- *   npx tsx scripts/backtest.ts <csv-dir>
+ *   npx tsx scripts/backtest.ts <csv-dir> [prefix]
  *
- * where <csv-dir> contains SP1_2122.csv, SP1_2223.csv, ... (chronological
- * La Liga seasons). The last two seasons are held out as the test set for
- * the weight-optimization comparison.
+ * where <csv-dir> contains season files named <PREFIX>_2122.csv,
+ * <PREFIX>_2223.csv, ... — e.g. SP1 for La Liga (default) or ISR for
+ * Ligat Ha'al (produced by scripts/fetch-israel.ts). The last two seasons
+ * are held out as the test set for the weight-optimization comparison.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -35,12 +36,13 @@ interface TeamState {
   seasonPlayed: number;
 }
 
-function parseCsvDir(dir: string): RawMatch[] {
-  const files = readdirSync(dir).filter((f) => /^SP1_\d{4}\.csv$/.test(f)).sort();
-  if (files.length === 0) throw new Error(`no SP1_*.csv files in ${dir}`);
+function parseCsvDir(dir: string, prefix: string): RawMatch[] {
+  const pattern = new RegExp(`^${prefix}_\\d{4}\\.csv$`);
+  const files = readdirSync(dir).filter((f) => pattern.test(f)).sort();
+  if (files.length === 0) throw new Error(`no ${prefix}_*.csv files in ${dir}`);
   const out: RawMatch[] = [];
   for (const file of files) {
-    const season = file.slice(4, 8);
+    const season = file.slice(prefix.length + 1, prefix.length + 5);
     const lines = readFileSync(join(dir, file), 'utf8').trim().split(/\r?\n/);
     const header = lines[0].split(',');
     const col = (name: string) => header.indexOf(name);
@@ -250,10 +252,11 @@ function* weightGrid(): Generator<Weights> {
 function main() {
   const dir = process.argv[2];
   if (!dir) {
-    console.error('usage: npx tsx scripts/backtest.ts <csv-dir>');
+    console.error('usage: npx tsx scripts/backtest.ts <csv-dir> [prefix]');
     process.exit(1);
   }
-  const matches = parseCsvDir(dir);
+  const prefix = process.argv[3] ?? 'SP1';
+  const matches = parseCsvDir(dir, prefix);
   const seasons = [...new Set(matches.map((m) => m.season))].sort();
   console.log(`Loaded ${matches.length} matches, seasons: ${seasons.join(', ')}`);
   const allDraws = matches.filter((m) => m.htDraw).length;
