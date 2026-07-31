@@ -16,6 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # the key is exposed to the job only via env so it never appears in
+    # step logs (public repo: logs are public, repo files are public)
+    env:
+      API_FOOTBALL_KEY: ${{ github.event.inputs.api_key }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,7 +27,7 @@ jobs:
           node-version: 22
       - name: Fetch Ligat Ha'al seasons
         working-directory: ht-draw-analyst
-        run: npx --yes tsx scripts/fetch-israel.ts --key "${{ github.event.inputs.api_key }}" --seasons "${{ github.event.inputs.seasons }}" --out data-israel
+        run: npx --yes tsx scripts/fetch-israel.ts --seasons "${{ github.event.inputs.seasons }}" --out data-israel
       - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
