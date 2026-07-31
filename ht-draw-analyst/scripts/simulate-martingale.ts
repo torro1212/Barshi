@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { buildSamples, parseCsvDir, predict, trainLogistic } from './research';
 
 const BASE = Number(process.argv[2] ?? 100);
+const ONLY_SEASON = process.argv[3]; // e.g. 2526 — restrict to one season
 const THRESHOLD = 0.48;
 const MAX_PER_DAY = 6;
 const MARGIN = 1.1; // Winner-like
@@ -49,7 +50,8 @@ const samples = buildSamples(matches, baseRate);
 
 interface Bet { date: string; label: string; odd: number; hit: boolean }
 const sequence: Bet[] = [];
-for (const ts of ODDS_SEASONS.slice(1)) {
+const seasonsToRun = ODDS_SEASONS.slice(1).filter((s) => !ONLY_SEASON || s === ONLY_SEASON);
+for (const ts of seasonsToRun) {
   const train = samples.filter((s) => s.season < ts);
   const test = samples.filter((s) => s.season === ts);
   const model = trainLogistic(train.map((s) => s.x), train.map((s) => s.y));
@@ -97,10 +99,12 @@ for (const mult of [2, 2.2, 2.5]) {
   let seriesCost = 0;
   let maxSeriesCost = 0;
   let minPnl = 0;
+  const ledger: string[] = [];
   for (const b of sequence) {
     maxStake = Math.max(maxStake, stake);
     seriesCost += stake;
     maxSeriesCost = Math.max(maxSeriesCost, seriesCost);
+    const placed = stake;
     if (b.hit) {
       pnl += stake * (b.odd - 1);
       stake = BASE;
@@ -110,7 +114,15 @@ for (const mult of [2, 2.2, 2.5]) {
       stake = Math.round(stake * mult);
     }
     minPnl = Math.min(minPnl, pnl);
+    if (ONLY_SEASON) {
+      ledger.push(
+        `    ${b.date}  ${b.label.padEnd(26)} stake ${String(Math.round(placed)).padStart(6)}₪ @${b.odd.toFixed(2)}` +
+          `  ${b.hit ? `✓ +${Math.round(placed * (b.odd - 1))}₪` : `✗ -${Math.round(placed)}₪`}` +
+          `  → balance ${pnl >= 0 ? '+' : ''}${Math.round(pnl)}₪`,
+      );
+    }
   }
+  if (ONLY_SEASON) console.log(`multiplier x${mult} — bet by bet:\n${ledger.join('\n')}`);
   console.log(`multiplier x${mult}:`);
   console.log(`  final P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}₪`);
   console.log(`  biggest single bet you must place: ${maxStake.toLocaleString()}₪`);
