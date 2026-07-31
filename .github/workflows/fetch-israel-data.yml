@@ -37,6 +37,14 @@ jobs:
           elif [ "${{ github.event.inputs.mode }}" = "odds" ]; then
             # in odds mode the "seasons" input doubles as extra league ids
             EXTRA_LEAGUE_IDS="${{ github.event.inputs.seasons }}" npx --yes tsx scripts/fetch-odds.ts --out odds-log
+          elif [ "${{ github.event.inputs.mode }}" = "laliga-odds" ]; then
+            # original football-data.co.uk files including real bookmaker odds
+            mkdir -p data-laliga-odds
+            for s in 2223 2324 2425 2526; do
+              curl -sS -o "data-laliga-odds/SP1_$s.csv" "https://www.football-data.co.uk/mmz4281/$s/SP1.csv"
+              echo "SP1_$s: $(wc -l < data-laliga-odds/SP1_$s.csv) lines"
+            done
+            head -1 data-laliga-odds/SP1_2526.csv
           else
             npx --yes tsx scripts/fetch-israel.ts --seasons "${{ github.event.inputs.seasons }}" --out data-israel
           fi
@@ -44,7 +52,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A -- ht-draw-analyst/data-israel ht-draw-analyst/odds-log 2>/dev/null || true
+          git add -A -- ht-draw-analyst/data-israel ht-draw-analyst/odds-log ht-draw-analyst/data-laliga-odds 2>/dev/null || true
           git diff --cached --quiet && echo "nothing to commit" && exit 0
           git commit -m "Update fetched data (API-Football)"
           git push
