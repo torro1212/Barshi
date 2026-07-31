@@ -94,30 +94,21 @@ export function predictMatch(match: MatchData): Prediction {
   }
   const x = features(b, h, a);
   const p = predictP(b, x);
-  let side: Prediction['side'] = 'none';
-  let precisionPct: number | null = null;
-  if (p <= b.thresholds.noDraw) {
-    side = 'no-draw';
-    precisionPct = b.precision.noDraw;
-  } else if (b.drawRecommendable && p >= b.thresholds.draw) {
-    side = 'draw';
-    precisionPct = b.precision.draw;
-  }
-  return { match, p, side, precisionPct, reasons: reasonsFor(b, x) };
+  // The tool recommends matches it expects TO end level at half-time —
+  // the only side it ever picks is "draw".
+  const side: Prediction['side'] = p >= b.thresholds.draw ? 'draw' : 'none';
+  return {
+    match,
+    p,
+    side,
+    precisionPct: side === 'draw' ? b.precision.draw : null,
+    reasons: reasonsFor(b, x),
+  };
 }
 
+/** Sorted by P(HT draw), most draw-likely first. */
 export function predictAll(matches: MatchData[]): Prediction[] {
-  return matches
-    .map(predictMatch)
-    .sort((x, y) => distance(y) - distance(x));
-}
-
-/** Recommendation strength: how far past its threshold a pick sits. */
-function distance(p: Prediction): number {
-  const b = BUNDLES[p.match.league];
-  if (p.side === 'no-draw') return b.thresholds.noDraw - p.p;
-  if (p.side === 'draw') return p.p - b.thresholds.draw;
-  return -1;
+  return matches.map(predictMatch).sort((x, y) => y.p - x.p);
 }
 
 export function recommendations(preds: Prediction[]): Prediction[] {
@@ -131,9 +122,9 @@ export function isHtDraw(result: string | undefined): boolean | undefined {
   return m[1] === m[2];
 }
 
-/** Did a recommendation hit, given the actual HT result? */
+/** Did a draw recommendation hit, given the actual HT result? */
 export function pickHit(side: Prediction['side'], result: string | undefined): boolean | undefined {
   const draw = isHtDraw(result);
-  if (draw === undefined || side === 'none') return undefined;
-  return side === 'draw' ? draw : !draw;
+  if (draw === undefined || side !== 'draw') return undefined;
+  return draw;
 }

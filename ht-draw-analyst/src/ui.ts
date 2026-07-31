@@ -5,21 +5,17 @@ export function cn(...parts: (string | false | undefined | null)[]): string {
 }
 
 export const SIDE_LABELS: Record<Side, string> = {
-  'no-draw': 'אין תיקו במחצית',
-  draw: 'תיקו במחצית',
+  draw: 'תיקו במחצית ⭐',
   none: 'ללא המלצה',
 };
 
 export const SIDE_STYLES: Record<Side, string> = {
-  'no-draw': 'bg-sky-500/15 text-sky-400 border-sky-500/40',
   draw: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40',
   none: 'bg-slate-500/15 text-slate-400 border-slate-500/40',
 };
 
 export function sideColor(side: Side): string {
-  if (side === 'draw') return 'text-emerald-400';
-  if (side === 'no-draw') return 'text-sky-400';
-  return 'text-slate-400';
+  return side === 'draw' ? 'text-emerald-400' : 'text-slate-400';
 }
 
 export function formatHebrewDate(iso: string): string {

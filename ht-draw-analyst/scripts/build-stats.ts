@@ -130,9 +130,9 @@ const SPECS: LeagueSpec[] = [
   },
   {
     league: 'israel', dir: 'data-israel', prefix: 'ISR', nTeams: 14,
-    thresholds: { noDraw: 0.36, draw: 0.55 },
+    thresholds: { noDraw: 0.36, draw: 0.48 },
     precision: { noDraw: 62.0, draw: 44.0 },
-    drawRecommendable: false,
+    drawRecommendable: true,
     testedOn: 'עונת מבחן 2024-25, 203 משחקים מחוץ למדגם',
   },
 ];

@@ -1,6 +1,6 @@
 export type LeagueId = 'laliga' | 'israel';
 
-export type Side = 'draw' | 'no-draw' | 'none';
+export type Side = 'draw' | 'none';
 
 export interface MatchData {
   id: string;
