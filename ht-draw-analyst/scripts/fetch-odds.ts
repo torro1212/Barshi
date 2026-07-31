@@ -20,6 +20,17 @@ const LEAGUES = [
   { league: 'israel', id: 383 },
 ];
 
+// Extra league ids (comma-separated) let us verify the pipeline while our
+// two leagues are between seasons, using leagues currently playing.
+// Values that look like years (>=2000) are ignored so the workflow's
+// default "seasons" input can't be misread as league ids.
+for (const raw of (process.env.EXTRA_LEAGUE_IDS ?? '').split(',')) {
+  const id = Number(raw.trim());
+  if (Number.isInteger(id) && id > 0 && id < 2000) {
+    LEAGUES.push({ league: `league-${id}`, id });
+  }
+}
+
 const key = process.env.API_FOOTBALL_KEY;
 const outDir = process.argv.includes('--out')
   ? process.argv[process.argv.indexOf('--out') + 1]

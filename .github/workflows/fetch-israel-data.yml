@@ -35,7 +35,8 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" = "probe" ]; then
             npx --yes tsx scripts/probe-key.ts
           elif [ "${{ github.event.inputs.mode }}" = "odds" ]; then
-            npx --yes tsx scripts/fetch-odds.ts --out odds-log
+            # in odds mode the "seasons" input doubles as extra league ids
+            EXTRA_LEAGUE_IDS="${{ github.event.inputs.seasons }}" npx --yes tsx scripts/fetch-odds.ts --out odds-log
           else
             npx --yes tsx scripts/fetch-israel.ts --seasons "${{ github.event.inputs.seasons }}" --out data-israel
           fi
