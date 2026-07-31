@@ -131,18 +131,22 @@ async function main() {
   console.log(`League: ${league.league.name} (id ${league.league.id})`);
 
   for (const season of seasons) {
-    const fixtures = await api<ApiFixture[]>(
-      `/fixtures?league=${league.league.id}&season=${season}`,
-      key,
-    );
-    const rows = fixturesToRows(fixtures);
-    if (rows.length === 0) {
-      console.warn(`season ${season}: no finished matches with HT scores (plan limit?) — skipped`);
-      continue;
+    try {
+      const fixtures = await api<ApiFixture[]>(
+        `/fixtures?league=${league.league.id}&season=${season}`,
+        key,
+      );
+      const rows = fixturesToRows(fixtures);
+      if (rows.length === 0) {
+        console.warn(`season ${season}: no finished matches with HT scores (plan limit?) — skipped`);
+        continue;
+      }
+      const file = join(outDir, seasonFileName(season));
+      writeFileSync(file, rowsToCsv(rows));
+      console.log(`${file}: ${rows.length} matches`);
+    } catch (e) {
+      console.warn(`season ${season}: ${e instanceof Error ? e.message : e} — skipped`);
     }
-    const file = join(outDir, seasonFileName(season));
-    writeFileSync(file, rowsToCsv(rows));
-    console.log(`${file}: ${rows.length} matches`);
   }
 }
 
