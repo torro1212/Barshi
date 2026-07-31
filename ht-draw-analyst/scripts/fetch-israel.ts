@@ -77,10 +77,15 @@ function seasonFileName(startYear: number): string {
   return `ISR_${String(yy).padStart(2, '0')}${String((yy + 1) % 100).padStart(2, '0')}.csv`;
 }
 
-async function api<T>(path: string, key: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'x-apisports-key': key },
-  });
+const RAPIDAPI_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
+let useRapidApi = false;
+
+async function apiOnce<T>(path: string, key: string): Promise<T> {
+  const res = useRapidApi
+    ? await fetch(`${RAPIDAPI_BASE}${path}`, {
+        headers: { 'x-rapidapi-key': key, 'x-rapidapi-host': 'api-football-v1.p.rapidapi.com' },
+      })
+    : await fetch(`${API_BASE}${path}`, { headers: { 'x-apisports-key': key } });
   if (!res.ok) throw new Error(`API-Football ${path} → HTTP ${res.status}`);
   const body = (await res.json()) as { errors: unknown; response: T };
   const errs = body.errors;
@@ -88,6 +93,23 @@ async function api<T>(path: string, key: string): Promise<T> {
     throw new Error(`API-Football ${path} → ${JSON.stringify(errs)}`);
   }
   return body.response;
+}
+
+/** Keys from dashboard.api-football.com and from RapidAPI both work: on an
+ *  auth error the direct host is retried once via the RapidAPI host. */
+async function api<T>(path: string, key: string): Promise<T> {
+  if (useRapidApi) return apiOnce<T>(path, key);
+  try {
+    return await apiOnce<T>(path, key);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/token|key|403|401/i.test(msg)) {
+      useRapidApi = true;
+      console.warn('direct api-sports auth failed, retrying via RapidAPI host…');
+      return apiOnce<T>(path, key);
+    }
+    throw e;
+  }
 }
 
 function arg(name: string): string | undefined {
