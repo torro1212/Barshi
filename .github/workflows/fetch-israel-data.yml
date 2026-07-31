@@ -29,11 +29,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Fetch Ligat Ha'al seasons
+      - name: Fetch data
         working-directory: ht-draw-analyst
         run: |
           if [ "${{ github.event.inputs.mode }}" = "probe" ]; then
             npx --yes tsx scripts/probe-key.ts
+          elif [ "${{ github.event.inputs.mode }}" = "odds" ]; then
+            npx --yes tsx scripts/fetch-odds.ts --out odds-log
           else
             npx --yes tsx scripts/fetch-israel.ts --seasons "${{ github.event.inputs.seasons }}" --out data-israel
           fi
@@ -41,7 +43,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A -- ht-draw-analyst/data-israel 2>/dev/null || true
+          git add -A -- ht-draw-analyst/data-israel ht-draw-analyst/odds-log 2>/dev/null || true
           git diff --cached --quiet && echo "nothing to commit" && exit 0
-          git commit -m "Add Ligat Ha'al historical data (API-Football)"
+          git commit -m "Update fetched data (API-Football)"
           git push
