@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#070b14" />
+<meta name="description" content="Rising Star — a mobile-first football career game. Play the key moments, train, negotiate contracts and climb from the fourth tier to the top." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Rising Star — Football Career</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ START ============ -->
+  <section id="screen-start" class="screen active">
+    <div class="start-bg"><span class="orb o1"></span><span class="orb o2"></span><span class="pitch-lines"></span></div>
+    <div class="start-inner">
+      <div class="logo">
+        <span class="logo-ball">⚽</span>
+        <h1>RISING<span>STAR</span></h1>
+        <p class="tagline">One player. One career. Every moment counts.</p>
+      </div>
+      <div class="start-actions">
+        <button id="start-continue" class="btn primary big" data-action="continue">Continue career</button>
+        <button class="btn ghost big" data-action="new">New career</button>
+        <button id="sound-toggle" class="btn link" data-action="sound">🔊 Sound on</button>
+      </div>
+      <div class="start-foot">
+        <div class="feat"><b>Play the moments</b><span>Swipe to shoot, pick the pass, beat your man</span></div>
+        <div class="feat"><b>Build the player</b><span>Train, rest, spend, negotiate, transfer</span></div>
+        <div class="feat"><b>Climb four tiers</b><span>From the Foundation League to the Vanguard</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CREATE ============ -->
+  <section id="screen-create" class="screen">
+    <header class="topbar"><h2>Create your player</h2></header>
+    <div class="scroll">
+      <div class="card">
+        <h3>Who are you?</h3>
+        <div class="field-row">
+          <label class="field"><span>First name</span><input id="create-first" maxlength="14" placeholder="Alex" /></label>
+          <label class="field"><span>Surname</span><input id="create-last" maxlength="16" placeholder="Rivera" /></label>
+        </div>
+        <label class="field"><span>Nationality</span><select id="create-nation"></select></label>
+      </div>
+      <div class="card">
+        <h3>Position</h3>
+        <div id="create-positions" class="picks"></div>
+      </div>
+      <div class="card">
+        <h3>Standout trait</h3>
+        <div id="create-traits" class="picks"></div>
+      </div>
+      <div class="card">
+        <h3>Your first club</h3>
+        <p class="muted small">Three fourth-tier clubs want to hand you a debut.</p>
+        <div id="create-clubs" class="picks"></div>
+      </div>
+      <button class="btn primary big sticky-cta" data-action="start-career">Sign my first contract</button>
+    </div>
+  </section>
+
+  <!-- ============ HUB ============ -->
+  <section id="screen-hub" class="screen">
+    <header class="hub-head">
+      <div class="hub-id">
+        <span id="hub-badge"></span>
+        <div class="hub-idtext">
+          <b id="hub-name">Player</b>
+          <span id="hub-sub" class="muted small">Club</span>
+        </div>
+        <div class="hub-ovr"><b id="hub-ovr">40</b><span>OVR</span></div>
+      </div>
+      <div class="hub-meters">
+        <div class="meter">
+          <span class="meter-label">Energy <i id="hub-energy-val">100</i></span>
+          <div class="meter-track"><i id="hub-energy-fill" class="meter-fill" style="width:100%"></i></div>
+        </div>
+        <div class="hub-chips">
+          <span class="chip" id="hub-money">£0</span>
+          <span class="chip" id="hub-season">S1 W1</span>
+          <span class="chip" id="hub-slots"></span>
+        </div>
+      </div>
+    </header>
+    <div id="hub-body" class="scroll"></div>
+    <nav id="hub-nav">
+      <button data-tab="home" class="on"><i>🏠</i><span>Home</span></button>
+      <button data-tab="train"><i>💪</i><span>Train</span></button>
+      <button data-tab="life"><i>🌟</i><span>Life</span></button>
+      <button data-tab="club"><i>🏟️</i><span>Club</span></button>
+      <button data-tab="league"><i>📊</i><span>League</span></button>
+      <button data-tab="me"><i>👤</i><span>Me</span></button>
+    </nav>
+  </section>
+
+  <!-- ============ MATCH ============ -->
+  <section id="screen-match" class="screen">
+    <header class="mt-head">
+      <div class="mt-comp-row"><span id="mt-comp">League</span>
+        <button class="btn tiny ghost" data-action="quit-match">Leave</button>
+      </div>
+      <div class="mt-scoreline">
+        <span id="mt-home" class="mt-team">HOM</span>
+        <span id="mt-score" class="mt-score">0 - 0</span>
+        <span id="mt-away" class="mt-team">AWY</span>
+        <span id="mt-clock" class="mt-clock">0'</span>
+      </div>
+    </header>
+    <div class="mt-stage">
+      <canvas id="pitch"></canvas>
+      <div id="mt-overlay" class="mt-overlay">
+        <h2 id="mt-title"></h2>
+        <p id="mt-sub"></p>
+      </div>
+      <div id="mt-flash" class="mt-flash"></div>
+      <div id="mt-big" class="mt-big"></div>
+      <div id="mt-tap" class="mt-tap">Tap to continue</div>
+      <div id="mt-timer" class="mt-timer"><i id="mt-timer-fill" class="mt-timer-fill"></i></div>
+    </div>
+    <footer class="mt-foot">
+      <div id="mt-ticker" class="mt-ticker">Kick off</div>
+      <div class="mt-foot-row">
+        <span class="mt-label">Energy</span>
+        <div class="mt-energy"><i id="mt-energy-fill" class="mt-energy-fill"></i></div>
+        <span class="mt-label">Rating</span>
+        <b id="mt-rating" class="mt-rating">6.4</b>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section id="screen-result" class="screen">
+    <div id="result-body" class="scroll"></div>
+    <div class="bottom-cta">
+      <button id="result-next" class="btn primary big" data-action="result-next">Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ SEASON ============ -->
+  <section id="screen-season" class="screen">
+    <div id="season-body" class="scroll"></div>
+    <div class="bottom-cta">
+      <button id="season-next" class="btn primary big" data-action="season-next">Transfer window</button>
+    </div>
+  </section>
+
+  <div id="modal" class="modal"></div>
+  <div id="toasts" class="toasts"></div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/state.js"></script>
+<script src="js/world.js"></script>
+<script src="js/match.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
